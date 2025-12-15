@@ -16,11 +16,15 @@ These features are widely used in medical imaging, remote sensing, and computer 
 - Energy 
 - Entropy 
 - Homogeneity
+- Information measure of correlation 1
+- Information measure of correlation 2
 - Inverse Difference
+- Maximum Probability
 - Sum Average 
 - Sum Entropy 
 - Sum of Squares 
 - Sum Variance
+- Maximal Correlation Coefficient
 
 
 The experimental design involves generating $8 \times 8$ binary images where each pixel is an independent and identically distributed (i.i.d.) Bernoulli random variable (only 2 gray levels, which makes for simple GLCM matricies). Nine distinct Bernoulli probabilities, $p \in \{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9\}$, are used to cover a variety of image outcomes...
