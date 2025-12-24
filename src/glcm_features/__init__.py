@@ -33,5 +33,3 @@ __all__ = [
     "compute_information_measure_correlation_2",
 ]
 
-from .features import *
-from .cy_features import compute_autocorrelation_cy

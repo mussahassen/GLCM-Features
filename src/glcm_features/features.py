@@ -1,7 +1,5 @@
 import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib import patches
-from matplotlib import axes
+from numba import njit
 from skimage.feature import graycomatrix, graycoprops
 
 
@@ -18,6 +16,7 @@ def compute_glcms(gs_image, levels = 2):
     return glcms
 
 
+@njit(cache=True)
 def pre_feature_statistics(mean_glcm):
 
     normed_glcm = mean_glcm / np.sum(mean_glcm)
@@ -109,10 +108,6 @@ def compute_autocorrelation(stats):
 def compute_cluster_prominence(stats):
     normed_glcm = stats['Pij']
     N = normed_glcm.shape[0]
-    p_x = stats['p_x']
-
-    # mu = sum(i * px_i)           ---***---
-    # OR mu = mu_x + mu_y          ---***---
     mu =  stats['mu']
 
     cluster_prominence = 0.0
@@ -136,10 +131,6 @@ def compute_cluster_prominence(stats):
 def compute_cluster_shade(stats):
     normed_glcm = stats['Pij']
     N = normed_glcm.shape[0]
-    p_x = stats['p_x']
-
-    # mu = sum(i * px_i)           ---***---
-    # OR mu = mu_x + mu_y          ---***---
     mu =  stats['mu']
 
     cluster_shade = 0.0
@@ -430,18 +421,66 @@ def compute_information_measure_correlation_2(stats):
     return imc2
 
 
-
-
-## ---------------------------------------------
-## Fast functions
-## ---------------------------------------------
-
-def compute_autocorrelation_fast(stats):
+def compute_inverse_variance(stats):
     normed_glcm = stats['Pij']
     N = normed_glcm.shape[0]
-    I = np.array([1, N])
-    J = np.array([1, N])
+    
+    inv_var = 0.0
+    for i in range(N):
+        for j in range(N):
+            if i != j:
+                inv_var += normed_glcm[i, j] / ((i - j) ** 2)
+    
+    return inv_var
 
-    autocorrelation = I.T @ np.squeeze(normed_glcm) @ J
 
-    return autocorrelation, I, J, np.squeeze(normed_glcm)
+def compute_difference_average(stats):
+    p_diff = stats['p_diff']
+    k_values = np.arange(len(p_diff))
+    diff_avg = np.sum(k_values * p_diff)
+    return diff_avg
+
+
+def compute_maximal_correlation_coefficient(stats):
+    normed_glcm = stats['Pij']
+    N = normed_glcm.shape[0]
+    p_x = stats['p_x']
+    p_y = stats['p_y']
+    
+    Q = np.zeros((N, N))
+    
+    for i in range(N):
+        for j in range(N):
+            sum_k = 0.0
+            for k in range(N):
+                if p_x[i] > 0 and p_y[k] > 0:
+                    sum_k += (normed_glcm[i, k] * normed_glcm[j, k]) / (p_x[i] * p_y[k])
+            Q[i, j] = sum_k
+    
+    eigenvalues = np.linalg.eigvals(Q)
+    eigenvalues = np.real(eigenvalues)  # just in case
+    eigenvalues_sorted = np.sort(eigenvalues)
+    if len(eigenvalues_sorted) > 1:
+        mcc = np.sqrt(eigenvalues_sorted[-2]) 
+    else:
+        mcc = 0.0
+    
+    return mcc
+
+
+def compute_maximum_probability(stats):
+    normed_glcm = stats['Pij']
+    return np.max(normed_glcm)
+
+
+## Fast Functions (Tester)
+
+@njit(cache=True)
+def autocorr_matmul(P):
+    N = P.shape[0]
+    I = np.arange(1, N + 1, dtype=np.float64)
+    J = np.arange(1, N + 1, dtype=np.float64)
+    
+    return np.sum(I * J * P)
+
+
