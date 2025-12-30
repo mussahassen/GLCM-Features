@@ -1,9 +1,15 @@
 from .features import (
     compute_glcms, pre_feature_statistics,
-    compute_autocorrelation, 
-    compute_cluster_prominence,
+    compute_autocorrelation,      
+    compute_cluster_prominence, 
     compute_cluster_shade,
-    compute_dissimilarity,
+    compute_cluster_tendency,
+    compute_difference_average, 
+    compute_inverse_variance,
+    compute_inverse_difference_moment,
+    compute_joint_average,
+    compute_maximum_probability,
+    compute_maximal_correlation_coefficient,
     compute_entropy,
     compute_difference_entropy,
     compute_difference_variance,
@@ -11,16 +17,21 @@ from .features import (
     compute_sum_average,
     compute_sum_entropy,
     compute_sum_of_squares,
-    compute_sum_variance,
     compute_information_measure_correlation_1,
-    compute_information_measure_correlation_2,
+    compute_information_measure_correlation_2
 )
 
 __all__ = [
-    "compute_autocorrelation",
-    "compute_cluster_prominence",
+    "compute_autocorrelation",      
+    "compute_cluster_prominence", 
     "compute_cluster_shade",
-    "compute_dissimilarity",
+    "compute_cluster_tendency",
+    "compute_difference_average", 
+    "compute_inverse_variance",
+    "compute_inverse_difference_moment",
+    "compute_joint_average",
+    "compute_maximum_probability",
+    "compute_maximal_correlation_coefficient",
     "compute_entropy",
     "compute_difference_entropy",
     "compute_difference_variance",
@@ -28,8 +39,7 @@ __all__ = [
     "compute_sum_average",
     "compute_sum_entropy",
     "compute_sum_of_squares",
-    "compute_sum_variance",
     "compute_information_measure_correlation_1",
-    "compute_information_measure_correlation_2",
+    "compute_information_measure_correlation_2"
 ]
 

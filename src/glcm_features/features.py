@@ -1,10 +1,8 @@
 import numpy as np
-from numba import njit
-from skimage.feature import graycomatrix, graycoprops
+from skimage.feature import graycomatrix
 
 
 def compute_glcms(gs_image, levels = 2):
-
     glcm0 = graycomatrix(gs_image, distances=[1], angles=[0], levels=levels, symmetric=False)
     glcm45 = graycomatrix(gs_image, distances=[1], angles=[np.pi/4], levels=levels, symmetric=False)
     glcm90 = graycomatrix(gs_image, distances=[1], angles=[np.pi/2], levels=levels, symmetric=False)
@@ -16,7 +14,6 @@ def compute_glcms(gs_image, levels = 2):
     return glcms
 
 
-@njit(cache=True)
 def pre_feature_statistics(mean_glcm):
 
     normed_glcm = mean_glcm / np.sum(mean_glcm)
@@ -26,9 +23,9 @@ def pre_feature_statistics(mean_glcm):
     
     # Marginal probabilities
     p_x = np.sum(normed_glcm, axis=1)  # Sum over j
-    p_x = p_x.squeeze()
+    p_x = np.squeeze(p_x)
     p_y = np.sum(normed_glcm, axis=0)  # Sum over i
-    p_y = p_y.squeeze()
+    p_y = np.squeeze(p_y)
     
     # Mean values
     indices = np.arange(N) + 1
@@ -117,8 +114,8 @@ def compute_cluster_prominence(stats):
             i_1 = i + 1
             j_1 = j + 1
             
-            # φ(i,j,g(P)) = (i + j - 2*mu)^3 
-            phi = (i_1 + j_1 - 2 * mu)**3
+            # φ(i,j,g(P)) = (i + j - 2*mu)^4 
+            phi = (i_1 + j_1 - 2 * mu)**4
 
             # ψ(p(i,j)) = p(i,j)
             psi = normed_glcm[i,j]
@@ -140,8 +137,8 @@ def compute_cluster_shade(stats):
             i_1 = i + 1
             j_1 = j + 1
             
-            # φ(i,j,g(P)) = (i + j - 2*mu)^4 
-            phi = (i_1 + j_1 - 2 * mu)**4
+            # φ(i,j,g(P)) = (i + j - 2*mu)^3 
+            phi = (i_1 + j_1 - 2 * mu)**3
 
             # ψ(p(i,j)) = p(i,j)
             psi = normed_glcm[i,j]
@@ -151,47 +148,36 @@ def compute_cluster_shade(stats):
     return cluster_shade
 
 
-def compute_dissimilarity(stats):
+def compute_cluster_tendency(stats):
     normed_glcm = stats['Pij']
     N = normed_glcm.shape[0]
-    
-    dissimilarity = 0.0
-    
+    mu_x = stats['mu_x']
+    mu_y = stats['mu_y']
+
+    cluster_shade = 0.0
+
     for i in range(N):
         for j in range(N):
             i_1 = i + 1
             j_1 = j + 1
             
-            # φ(i,j,g(P)) = |i - j|
-            phi = abs(i_1 - j_1)
-            
+            # φ(i,j,g(P)) = (i + j - mu_x - mu_y)^2 
+            phi = (i_1 + j_1 - mu_x - mu_y)**2
+
             # ψ(p(i,j)) = p(i,j)
-            psi = normed_glcm[i, j] 
+            psi = normed_glcm[i,j]
             
-            dissimilarity += phi * psi
+            cluster_shade += phi * psi
     
-    return dissimilarity
+    return cluster_shade
 
 
-def compute_entropy(stats):
-    normed_glcm = stats['Pij']
-    N = normed_glcm.shape[0]
-    
-    entropy_val = 0.0
-    
-    for i in range(N):
-        for j in range(N):
-            p = normed_glcm[i, j]
-            if p > 0:
-                # φ(i,j,g(P)) = 1
-                phi = 1
-                
-                # ψ(p(i,j)) = -p(i,j) * log(p(i,j))
-                psi = -p * np.log(p)
-                
-                entropy_val += phi * psi
-    
-    return entropy_val
+def compute_difference_average(stats):
+    p_diff = stats['p_diff']
+    k_values = np.arange(len(p_diff))
+    diff_avg = np.sum(k_values * p_diff)
+    return diff_avg
+
 
 def compute_difference_entropy(stats):
     normed_glcm = stats['Pij']
@@ -240,116 +226,25 @@ def compute_difference_variance(stats):
     return diff_variance
 
 
-def compute_inverse_difference(stats):
+def compute_entropy(stats):
     normed_glcm = stats['Pij']
     N = normed_glcm.shape[0]
     
-    inv_diff = 0.0
+    entropy_val = 0.0
     
     for i in range(N):
         for j in range(N):
-            i_1based = i + 1
-            j_1based = j + 1
-            
-            # φ(i,j,g(P)) = 1
-            phi = 1
-            
-            # ψ(p(i,j)) = p(i,j) / (1 + |i-j|)
-            psi = normed_glcm[i, j] / (1 + abs(i_1based - j_1based))
-            
-            inv_diff += phi * psi
+            p = normed_glcm[i, j]
+            if p > 0:
+                # φ(i,j,g(P)) = 1
+                phi = 1
+                
+                # ψ(p(i,j)) = -p(i,j) * log(p(i,j))
+                psi = -p * np.log(p)
+                
+                entropy_val += phi * psi
     
-    return inv_diff
-
-
-def compute_sum_average(stats):
-    normed_glcm = stats['Pij']
-    N = normed_glcm.shape[0]
-
-    # Compute p_x+y(k) for k = 2 to 2N
-    p_sum = np.zeros(2 * N + 1)
-    
-    for i in range(N):
-        for j in range(N):
-            k = (i + 1) + (j + 1)
-            if k <= 2 * N:
-                p_sum[k] += normed_glcm[i, j]
-    
-    # Compute sum average
-    sum_avg = 0.0
-    for k in range(2, 2 * N + 1):
-        sum_avg += k * p_sum[k]
-    
-    return sum_avg
-
-
-def compute_sum_entropy(stats):
-    normed_glcm = stats['Pij']
-    N = normed_glcm.shape[0]
-    
-    p_sum = np.zeros(2 * N + 1)
-    
-    for i in range(N):
-        for j in range(N):
-            k = (i + 1) + (j + 1)
-            if k <= 2 * N:
-                p_sum[k] += normed_glcm[i, j]
-    
-    # Compute sum entropy
-    sum_ent = 0.0
-    for k in range(2, 2 * N + 1):
-        if p_sum[k] > 0:
-            sum_ent -= p_sum[k] * np.log(p_sum[k])
-    
-    return sum_ent
-
-
-def compute_sum_of_squares(stats):
-    normed_glcm = stats['Pij']
-    N = normed_glcm.shape[0]
-    mu_x = stats['mu_x']
-    
-    sum_squares = 0.0
-    
-    for i in range(N):
-        for j in range(N):
-            i_1based = i + 1
-            
-            # φ(i,j,g(P)) = (i - μ_x)^2
-            phi = (i_1based - mu_x) ** 2
-            
-            # ψ(p(i,j)) = p(i,j)
-            psi = normed_glcm[i, j]
-            
-            sum_squares += phi * psi
-    
-    return sum_squares
-
-
-def compute_sum_variance(stats):
-    normed_glcm = stats['Pij']
-    N = normed_glcm.shape[0]
-    
-    # Compute p_x+y(k) for k = 2 to 2N
-    p_sum = np.zeros(2 * N + 1)
-    
-    for i in range(N):
-        for j in range(N):
-            k = (i + 1) + (j + 1)
-            if k <= 2 * N:
-                p_sum[k] += normed_glcm[i, j]
-    
-    # Compute sum average
-    sum_avg = 0.0
-    for k in range(2, 2 * N + 1):
-        sum_avg += k * p_sum[k]
-    
-    # Compute sum variance
-    sum_var = 0.0
-    for k in range(2, 2 * N + 1):
-        sum_var += ((k - sum_avg) ** 2) * p_sum[k]
-    
-    return sum_var
+    return entropy_val
 
 
 def compute_information_measure_correlation_1(stats):
@@ -421,6 +316,50 @@ def compute_information_measure_correlation_2(stats):
     return imc2
 
 
+def compute_inverse_difference(stats):
+    normed_glcm = stats['Pij']
+    N = normed_glcm.shape[0]
+    
+    inv_diff = 0.0
+    
+    for i in range(N):
+        for j in range(N):
+            i_1based = i + 1
+            j_1based = j + 1
+            
+            # φ(i,j,g(P)) = 1
+            phi = 1
+            
+            # ψ(p(i,j)) = p(i,j) / (1 + |i-j|)
+            psi = normed_glcm[i, j] / (1 + abs(i_1based - j_1based))
+            
+            inv_diff += phi * psi
+    
+    return inv_diff
+
+
+def compute_inverse_difference_moment(stats):
+    normed_glcm = stats['Pij']
+    N = normed_glcm.shape[0]
+    
+    inv_diff = 0.0
+    
+    for i in range(N):
+        for j in range(N):
+            i_1based = i + 1
+            j_1based = j + 1
+            
+            # φ(i,j,g(P)) = 1
+            phi = 1
+            
+            # ψ(p(i,j)) = p(i,j) / (1 + |i-j|^2)
+            psi = normed_glcm[i, j] / (1 + (i_1based - j_1based)**2)
+            
+            inv_diff += phi * psi
+    
+    return inv_diff
+
+
 def compute_inverse_variance(stats):
     normed_glcm = stats['Pij']
     N = normed_glcm.shape[0]
@@ -434,11 +373,87 @@ def compute_inverse_variance(stats):
     return inv_var
 
 
-def compute_difference_average(stats):
-    p_diff = stats['p_diff']
-    k_values = np.arange(len(p_diff))
-    diff_avg = np.sum(k_values * p_diff)
-    return diff_avg
+def compute_joint_average(stats):
+    normed_glcm = stats['Pij']
+    N = normed_glcm.shape[0]
+
+    joint_avg = 0.0
+    for i in range(N):
+        for j in range(N):
+            i_1 = i + 1
+            
+            joint_avg += i_1 * normed_glcm[i, j]
+    
+    return joint_avg
+
+
+def compute_maximum_probability(stats):
+    normed_glcm = stats['Pij']
+    return np.max(normed_glcm)
+
+
+def compute_sum_average(stats):
+    normed_glcm = stats['Pij']
+    N = normed_glcm.shape[0]
+
+    # Compute p_x+y(k) for k = 2 to 2N
+    p_sum = np.zeros(2 * N + 1)
+    
+    for i in range(N):
+        for j in range(N):
+            k = (i + 1) + (j + 1)
+            if k <= 2 * N:
+                p_sum[k] += normed_glcm[i, j]
+    
+    # Compute sum average
+    sum_avg = 0.0
+    for k in range(2, 2 * N + 1):
+        sum_avg += k * p_sum[k]
+    
+    return sum_avg
+
+
+def compute_sum_entropy(stats):
+    normed_glcm = stats['Pij']
+    N = normed_glcm.shape[0]
+    
+    p_sum = np.zeros(2 * N + 1)
+    
+    for i in range(N):
+        for j in range(N):
+            k = (i + 1) + (j + 1)
+            if k <= 2 * N:
+                p_sum[k] += normed_glcm[i, j]
+    
+    # Compute sum entropy
+    sum_ent = 0.0
+    for k in range(2, 2 * N + 1):
+        if p_sum[k] > 0:
+            sum_ent -= p_sum[k] * np.log(p_sum[k])
+    
+    return sum_ent
+
+
+def compute_sum_of_squares(stats):
+    normed_glcm = stats['Pij']
+    N = normed_glcm.shape[0]
+    mu_x = stats['mu_x']
+    
+    sum_squares = 0.0
+    
+    for i in range(N):
+        for j in range(N):
+            i_1based = i + 1
+            
+            # φ(i,j,g(P)) = (i - μ_x)^2
+            phi = (i_1based - mu_x) ** 2
+            
+            # ψ(p(i,j)) = p(i,j)
+            psi = normed_glcm[i, j]
+            
+            sum_squares += phi * psi
+    
+    return sum_squares
 
 
 def compute_maximal_correlation_coefficient(stats):
@@ -468,19 +483,43 @@ def compute_maximal_correlation_coefficient(stats):
     return mcc
 
 
-def compute_maximum_probability(stats):
+
+# ---------------------------
+# Held out features
+# ---------------------------
+
+def compute_dissimilarity(stats):
     normed_glcm = stats['Pij']
-    return np.max(normed_glcm)
-
-
-## Fast Functions (Tester)
-
-@njit(cache=True)
-def autocorr_matmul(P):
-    N = P.shape[0]
-    I = np.arange(1, N + 1, dtype=np.float64)
-    J = np.arange(1, N + 1, dtype=np.float64)
+    N = normed_glcm.shape[0]
     
-    return np.sum(I * J * P)
+    dissimilarity = 0.0
+    
+    for i in range(N):
+        for j in range(N):
+            i_1 = i + 1
+            j_1 = j + 1
+            
+            # φ(i,j,g(P)) = |i - j|
+            phi = abs(i_1 - j_1)
+            
+            # ψ(p(i,j)) = p(i,j)
+            psi = normed_glcm[i, j] 
+            
+            dissimilarity += phi * psi
+    
+    return dissimilarity
 
 
+if __name__ == "__main__":
+
+    test_glcm = np.array([[2, 1, 0],
+                          [1, 4, 1],
+                          [0, 1, 2]], dtype=np.float64)
+    
+    stats = pre_feature_statistics(test_glcm)
+    
+    joint_avg = compute_joint_average(stats)
+    tendency = compute_cluster_tendency(stats)
+    
+    print(f"Joint Average: {joint_avg}")
+    print(f"Cluster Tendency: {tendency}")
