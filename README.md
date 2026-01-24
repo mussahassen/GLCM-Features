@@ -31,7 +31,7 @@ These features are widely used in medical imaging, remote sensing, and computer 
 
 The experimental design involves generating $8 \times 8$ binary images where each pixel is an independent and identically distributed (i.i.d.) Bernoulli random variable (only 2 gray levels, which makes for simple GLCM matricies). Nine distinct Bernoulli probabilities, $p \in \{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9\}$, are used to cover a variety of image outcomes...
 
-### Guide
+## Guide
 
 Start with the 'Htf.pdf' file to go over notation and the list of all the features. 
 
