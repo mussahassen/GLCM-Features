@@ -35,6 +35,6 @@ The experimental design involves generating $8 \times 8$ binary images where eac
 
 Start with the 'Htf.pdf' file to go over notation and the list of all the features. 
 
-The main experiments can be found in 'texture_analysis.ipynb'.
+The main experiments can be found in 'Experiments.ipynb' and 'Experiments_p2.ipynb'. In 'feature_char.ipynb', there is an introduction to the charecterization of the features.
 
-In 'toy_images.ipynb' you can find $8 \times 8$ generated images (more complex images will be generated), to get a visual sense of the distinct textures that the features measure. 'Validation.ipynb' consists of executions of the functions as a sample test. 'features.py' under the src folder holds all the functions for the new features. In 'feature_char.ipynb', there is an introduction to the charecterization of the features.
+In 'toy_images.ipynb' you can find $8 \times 8$ generated images (more complex images will be generated), to get a visual sense of the distinct textures that the features measure. 'Validation.ipynb' consists of executions of the functions as a sample test. 'features.py' under the src folder holds all the functions for the new features.
